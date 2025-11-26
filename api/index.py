@@ -1,16 +1,19 @@
-# Vercel serverless function wrapper for Flask app
+# Vercel serverless function - Flask app wrapper
 import sys
 import os
 
-# Add parent directory to path to import app
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# Add parent directory to path
+parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, parent_dir)
 
-from app import app
+try:
+    from app import app
+except Exception as e:
+    # For debugging - will show in Vercel logs
+    import traceback
+    error_msg = f"Import error: {str(e)}\n{traceback.format_exc()}"
+    print(error_msg)
+    raise
 
-# Vercel serverless function handler
-def handler(request):
-    return app(request.environ, request.start_response)
-
-# Export app for Vercel
-__all__ = ['app', 'handler']
-
+# Vercel Python runtime automatically handles WSGI apps
+# Just export the Flask app object

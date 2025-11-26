@@ -115,10 +115,20 @@ FUNCTIONAL_GROUPS = [
 
 def load_ftir_data(filename):
     """Load FTIR data from text file"""
+    import os
+    # Handle both local and Vercel serverless paths
+    if os.path.exists(filename):
+        filepath = filename
+    elif os.path.exists(os.path.join(os.path.dirname(__file__), filename)):
+        filepath = os.path.join(os.path.dirname(__file__), filename)
+    else:
+        # Try in current directory
+        filepath = filename
+    
     wavenumbers = []
     transmittance = []
     
-    with open(filename, 'r') as f:
+    with open(filepath, 'r') as f:
         for line in f:
             line = line.strip()
             if line and not line.startswith('##'):
