@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FTIR Data Analysis - Bacterial Comparison</title>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background-color: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .plot-container {
+            margin-bottom: 40px;
+            background-color: #fafafa;
+            padding: 20px;
+            border-radius: 8px;
+        }
+        .plot-title {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 15px;
+            color: #555;
+        }
+        .plot-div {
+            height: 500px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 30px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        th {
+            background-color: #4CAF50;
+            color: white;
+            font-weight: bold;
+        }
+        tr:hover {
+            background-color: #f5f5f5;
+        }
+        .yes {
+            color: #4CAF50;
+            font-weight: bold;
+        }
+        .no {
+            color: #f44336;
+            font-weight: bold;
+        }
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+        }
+        .error {
+            color: red;
+            padding: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>FTIR Data Analysis - Bacterial Comparison</h1>
+        
+        <div class="plot-container">
+            <div class="plot-title">Bacteria 1 - FTIR Spectrum</div>
+            <div id="spectra-plot-1" class="plot-div"></div>
+        </div>
+        
+        <div class="plot-container">
+            <div class="plot-title">Bacteria 2 - FTIR Spectrum</div>
+            <div id="spectra-plot-2" class="plot-div"></div>
+        </div>
+        
+        <div class="plot-container">
+            <div class="plot-title">Bacteria 3 - FTIR Spectrum</div>
+            <div id="spectra-plot-3" class="plot-div"></div>
+        </div>
+        
+        <div class="plot-container">
+            <div class="plot-title">FTIR Spectra Comparison (All Three Samples)</div>
+            <div id="spectra-plot-comparison" class="plot-div"></div>
+        </div>
+        
+        <div class="plot-container" style="background-color: #e8f5e9; padding: 20px;">
+            <h2 style="margin-top: 0;">Peak Detection Explanation</h2>
+            <div style="line-height: 1.8; color: #333;">
+                <p><strong>Standard FTIR Peak Detection Method:</strong></p>
+                <p>Following FTIR spectroscopy best practices, the analysis:</p>
+                <ol>
+                    <li><strong>Converts transmittance to absorbance:</strong> Uses the standard formula A = -log₁₀(T/100) where T is transmittance percentage. This is the standard approach because absorbance is directly proportional to concentration (Beer's Law) and makes peak identification more intuitive.</li>
+                    <li><strong>Detects peaks in absorbance spectrum:</strong> Identifies actual absorption peaks (upward deflections) rather than valleys in transmittance. This is the standard practice used in professional FTIR analysis software.</li>
+                </ol>
+                
+                <p><strong>How smaller peaks are filtered out:</strong></p>
+                <ul>
+                    <li><strong>Prominence (0.02 absorbance units):</strong> A peak must be at least 0.02 absorbance units above its surrounding baseline to be detected. This filters out noise and very small absorption bands that may be artifacts.</li>
+                    <li><strong>Height (0.05 absorbance units):</strong> Peaks must have at least 0.05 absorbance units. This additional filter removes very weak absorption bands.</li>
+                    <li><strong>Distance (20 data points):</strong> Peaks must be at least 20 data points (~8-10 cm⁻¹) apart. This prevents detecting multiple peaks from the same broad absorption band and reduces false positives from spectral noise.</li>
+                    <li><strong>Wavenumber Range (800-3600 cm⁻¹):</strong> Only peaks in the typical FTIR range are considered, excluding the far-infrared region where data quality may be lower.</li>
+                    <li><strong>Functional Group Matching:</strong> Only peaks that match known functional group wavenumber ranges are included in the final analysis, further filtering out unassigned peaks.</li>
+                </ul>
+                <p style="margin-top: 15px; font-style: italic; color: #666;">
+                    <strong>References:</strong> Standard FTIR analysis practices as described in instrument manuals (Shimadzu, Thermo Fisher) and FTIR spectroscopy textbooks. These parameters can be adjusted in the <code>detect_peaks()</code> function in app.py if you need to detect more or fewer peaks.
+                </p>
+            </div>
+        </div>
+        
+        <div id="comparison-table-container">
+            <h2>Functional Group Comparison Table</h2>
+            <div id="comparison-table"></div>
+        </div>
+    </div>
+
+    <script>
+        // Load and plot data
+        function loadAndPlot() {
+            console.log('Starting to load data...');
+            
+            fetch('/api/data')
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    console.log('Data loaded successfully');
+                    console.log('Sample 1 peaks:', data.peaks['1'] ? data.peaks['1'].length : 0);
+                    console.log('Sample 1 data points:', data.spectra['1'] ? data.spectra['1'].wavenumbers.length : 0);
+                    
+                    // Plot individual spectra
+                    plotIndividualSpectra(data.spectra, data.peaks);
+                    
+                    // Plot comparison graph
+                    plotComparisonSpectra(data.spectra, data.peaks);
+                    
+                    // Create comparison table
+                    createComparisonTable(data.comparison_table);
+                })
+                .catch(error => {
+                    console.error('Error loading data:', error);
+                    ['1', '2', '3', 'comparison'].forEach(id => {
+                        const plotEl = document.getElementById(`spectra-plot-${id}`);
+                        if (plotEl) {
+                            plotEl.innerHTML = '<div class="error">Error loading data: ' + error.message + '</div>';
+                        }
+                    });
+                });
+        }
+
+        function downsampleData(x, y, maxPoints = 2000) {
+            // Downsample large datasets for faster rendering
+            if (x.length <= maxPoints) {
+                return {x: x, y: y};
+            }
+            const step = Math.ceil(x.length / maxPoints);
+            const downsampledX = [];
+            const downsampledY = [];
+            for (let i = 0; i < x.length; i += step) {
+                downsampledX.push(x[i]);
+                downsampledY.push(y[i]);
+            }
+            return {x: downsampledX, y: downsampledY};
+        }
+
+        function plotIndividualSpectra(spectra, peaks) {
+            const colors = ['#1f77b4', '#ff7f0e', '#2ca02c'];
+            const names = ['Bacteria 1', 'Bacteria 2', 'Bacteria 3'];
+            
+            for (let i = 0; i < 3; i++) {
+                const sampleId = (i + 1).toString();
+                const plotId = `spectra-plot-${sampleId}`;
+                
+                if (!spectra[sampleId]) {
+                    console.error(`No data for sample ${sampleId}`);
+                    document.getElementById(plotId).innerHTML = 
+                        '<div class="error">No data available for this sample.</div>';
+                    continue;
+                }
+                
+                // Plot transmittance (%T) - absorption bands appear as valleys
+                // Downsample for faster rendering
+                const ds = downsampleData(spectra[sampleId].wavenumbers, spectra[sampleId].transmittance, 2000);
+                const wavenumbers = ds.x;
+                const transmittance = ds.y;
+                
+                const traces = [];
+                
+                // Main spectrum line (transmittance)
+                traces.push({
+                    x: wavenumbers,
+                    y: transmittance,
+                    type: 'scatter',
+                    mode: 'lines',
+                    name: names[i],
+                    line: { color: colors[i], width: 2 }
+                });
+                
+                // Add peak markers with functional group names
+                // Note: In transmittance, absorption bands are valleys (low transmittance)
+                if (peaks[sampleId] && peaks[sampleId].length > 0) {
+                    const peakWavenumbers = peaks[sampleId].map(p => p.wavenumber);
+                    const peakTransmittance = peaks[sampleId].map(p => p.transmittance);
+                    const peakLabels = peaks[sampleId].map(p => {
+                        // Extract just the functional group name (before parentheses)
+                        return p.functional_group.split('(')[0].trim();
+                    });
+                    const peakHoverText = peaks[sampleId].map(p => 
+                        `${p.functional_group}<br>Wavenumber: ${p.wavenumber.toFixed(1)} cm⁻¹<br>Transmittance: ${p.transmittance.toFixed(2)}%`
+                    );
+                    
+                    traces.push({
+                        x: peakWavenumbers,
+                        y: peakTransmittance,
+                        type: 'scatter',
+                        mode: 'markers+text',
+                        name: 'Peaks',
+                        marker: {
+                            color: colors[i],
+                            size: 8,
+                            symbol: 'diamond',
+                            line: { width: 1.5, color: '#ffffff' }
+                        },
+                        text: peakLabels,
+                        textposition: 'bottom center',
+                        textfont: { 
+                            size: 9,
+                            color: colors[i]
+                        },
+                        hovertemplate: '%{customdata}<extra></extra>',
+                        customdata: peakHoverText,
+                        showlegend: false
+                    });
+                }
+                
+                const layout = {
+                    title: {
+                        text: `${names[i]} - FTIR Spectrum`,
+                        font: { size: 18 }
+                    },
+                    xaxis: {
+                        title: 'Wavenumber (cm⁻¹)',
+                        autorange: 'reversed'
+                    },
+                    yaxis: {
+                        title: 'Transmittance (%)'
+                    },
+                    hovermode: 'closest',
+                    legend: {
+                        x: 0.02,
+                        y: 0.98
+                    },
+                    margin: { l: 60, r: 30, t: 60, b: 60 }
+                };
+                
+                try {
+                    Plotly.newPlot(plotId, traces, layout, {responsive: true});
+                    console.log(`Plot ${sampleId} rendered successfully`);
+                } catch (plotError) {
+                    console.error(`Error plotting ${sampleId}:`, plotError);
+                    document.getElementById(plotId).innerHTML = 
+                        '<div class="error">Error rendering plot: ' + plotError.message + '</div>';
+                }
+            }
+        }
+        
+        function plotComparisonSpectra(spectra, peaks) {
+            const traces = [];
+            const colors = ['#1f77b4', '#ff7f0e', '#2ca02c'];
+            const names = ['Bacteria 1', 'Bacteria 2', 'Bacteria 3'];
+            
+            for (let i = 0; i < 3; i++) {
+                const sampleId = (i + 1).toString();
+                if (!spectra[sampleId]) continue;
+                
+                // Plot transmittance (%T)
+                // Downsample for faster rendering
+                const ds = downsampleData(spectra[sampleId].wavenumbers, spectra[sampleId].transmittance, 2000);
+                const wavenumbers = ds.x;
+                const transmittance = ds.y;
+                
+                traces.push({
+                    x: wavenumbers,
+                    y: transmittance,
+                    type: 'scatter',
+                    mode: 'lines',
+                    name: names[i],
+                    line: { color: colors[i], width: 2 }
+                });
+                
+                // Add peak markers (no labels for comparison)
+                // Note: In transmittance, absorption bands are valleys (low transmittance)
+                if (peaks[sampleId] && peaks[sampleId].length > 0) {
+                    const peakWavenumbers = peaks[sampleId].map(p => p.wavenumber);
+                    const peakTransmittance = peaks[sampleId].map(p => p.transmittance);
+                    const peakHoverText = peaks[sampleId].map(p => 
+                        `${names[i]}: ${p.functional_group}<br>Wavenumber: ${p.wavenumber.toFixed(1)} cm⁻¹<br>Transmittance: ${p.transmittance.toFixed(2)}%`
+                    );
+                    
+                    traces.push({
+                        x: peakWavenumbers,
+                        y: peakTransmittance,
+                        type: 'scatter',
+                        mode: 'markers',
+                        name: names[i] + ' Peaks',
+                        marker: {
+                            color: colors[i],
+                            size: 6,
+                            symbol: 'diamond',
+                            line: { width: 1, color: colors[i] }
+                        },
+                        hovertemplate: '%{customdata}<extra></extra>',
+                        customdata: peakHoverText,
+                        showlegend: false
+                    });
+                }
+            }
+            
+            const layout = {
+                title: {
+                    text: 'FTIR Spectra Comparison - All Three Bacterial Samples',
+                    font: { size: 20 }
+                },
+                xaxis: {
+                    title: 'Wavenumber (cm⁻¹)',
+                    autorange: 'reversed'
+                },
+                yaxis: {
+                    title: 'Transmittance (%)'
+                },
+                hovermode: 'closest',
+                legend: {
+                    x: 0.02,
+                    y: 0.98
+                },
+                margin: { l: 60, r: 30, t: 60, b: 60 }
+            };
+            
+            try {
+                Plotly.newPlot('spectra-plot-comparison', traces, layout, {responsive: true});
+                console.log('Comparison plot rendered successfully');
+            } catch (plotError) {
+                console.error('Error plotting comparison:', plotError);
+                document.getElementById('spectra-plot-comparison').innerHTML = 
+                    '<div class="error">Error rendering plot: ' + plotError.message + '</div>';
+            }
+        }
+
+        function createComparisonTable(tableData) {
+            if (!tableData || tableData.length === 0) {
+                document.getElementById('comparison-table').innerHTML = 
+                    '<p class="error">No comparison data available.</p>';
+                return;
+            }
+            
+            let html = '<table><thead><tr>';
+            html += '<th>Functional Group / Chemical Bond</th>';
+            html += '<th>Bacteria 1</th>';
+            html += '<th>Bacteria 2</th>';
+            html += '<th>Bacteria 3</th>';
+            html += '</tr></thead><tbody>';
+            
+            tableData.forEach(row => {
+                html += '<tr>';
+                html += `<td>${row.functional_group}</td>`;
+                html += `<td class="${row['1'] === 'Yes' ? 'yes' : 'no'}">${row['1']}</td>`;
+                html += `<td class="${row['2'] === 'Yes' ? 'yes' : 'no'}">${row['2']}</td>`;
+                html += `<td class="${row['3'] === 'Yes' ? 'yes' : 'no'}">${row['3']}</td>`;
+                html += '</tr>';
+            });
+            
+            html += '</tbody></table>';
+            document.getElementById('comparison-table').innerHTML = html;
+        }
+        
+        // Load data when page loads
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', loadAndPlot);
+        } else {
+            // DOM is already ready
+            loadAndPlot();
+        }
+        
+        // Also try loading after a short delay to ensure Plotly is loaded
+        setTimeout(function() {
+            if (typeof Plotly === 'undefined') {
+                console.error('Plotly library not loaded!');
+                ['1', '2', '3', 'comparison'].forEach(id => {
+                    const plotEl = document.getElementById(`spectra-plot-${id}`);
+                    if (plotEl && plotEl.innerHTML.includes('Loading')) {
+                        plotEl.innerHTML = '<div class="error">Plotly library failed to load. Please refresh the page.</div>';
+                    }
+                });
+            }
+        }, 2000);
+    </script>
+</body>
+</html>
