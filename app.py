@@ -12,6 +12,7 @@ app = Flask(__name__)
 # - Thermo Fisher Scientific FTIR Reference Chart
 # - Chemistry LibreTexts IR Correlation Tables
 # - Published bacterial FTIR studies (Naumann et al., 1991; Dziuba et al., 2014)
+# - Heavy metal detection in fingerprint region (Food Safety and Risk, 2025)
 # Ordered by specificity (more specific ranges first)
 FUNCTIONAL_GROUPS = [
     # O-H and N-H stretching region
@@ -65,6 +66,51 @@ FUNCTIONAL_GROUPS = [
     ('C-C Stretching (Alkanes)', (800, 1200)),
     ('C-N Stretching (Amines)', (1000, 1350)),
     ('C-S Stretching (Thiols)', (600, 700)),
+    
+    # Heavy metals - Fingerprint region (400-1500 cm⁻¹)
+    # Most common heavy metals: Pb, Cd, Hg, Cr, Cu, Ni, Zn, As, Fe, U
+    # Specific heavy metal bands (checked FIRST - more specific ranges)
+    # Note: Order matters - more specific ranges must come before general ones
+    
+    # Mercury (Hg²⁺)
+    ('Hg-S Stretching (Mercury)', (400, 500)),  # Most specific - narrow range
+    
+    # Arsenic (As³⁺/As⁵⁺)
+    ('As-O Stretching (Arsenic)', (700, 900)),  # Specific range
+    
+    # Chromium (Cr³⁺/Cr⁶⁺)
+    ('Cr-O Stretching (Chromium)', (500, 700)),  # Specific range
+    
+    # Lead (Pb²⁺)
+    ('Pb-O Stretching (Lead)', (450, 550)),  # Narrower range for Lead
+    
+    # Cadmium (Cd²⁺)
+    ('Cd-O Stretching (Cadmium)', (500, 600)),  # Narrower range for Cadmium
+    
+    # Copper (Cu²⁺)
+    ('Cu-O Stretching (Copper)', (400, 500)),  # Narrower range for Copper
+    
+    # Zinc (Zn²⁺)
+    ('Zn-O Stretching (Zinc)', (550, 650)),  # Narrower range for Zinc
+    
+    # Nickel (Ni²⁺)
+    ('Ni-O Stretching (Nickel)', (400, 500)),  # Narrower range for Nickel
+    
+    # Iron (Fe²⁺/Fe³⁺)
+    ('Fe-O Stretching (Iron)', (450, 550)),  # Narrower range for Iron
+    
+    # Uranium (U) - most common heavy metals
+    ('U-O Stretching (Uranium)', (800, 950)),  # Uranium-oxygen stretching
+    ('U-O₂ Stretching (Uranium)', (900, 1000)),  # Uranyl ion (UO₂²⁺)
+    # General metal-ligand vibrations (checked LAST - broader ranges as fallback)
+    ('Metal-S Stretching (Heavy Metals)', (400, 600)),
+    ('Metal-N Stretching (Heavy Metals)', (400, 600)),
+    ('Metal-OH Bending (Heavy Metals)', (500, 800)),
+    ('Metal-O Stretching (Heavy Metals)', (400, 800)),  # General fallback - checked last
+    ('Metal-Carbonate (Heavy Metals)', (1400, 1500)),
+    ('Metal-Phosphate (Heavy Metals)', (900, 1100)),
+    ('Metal-Sulfate (Heavy Metals)', (1100, 1200)),
+    ('Metal-Nitrate (Heavy Metals)', (1300, 1400)),
 ]
 
 def load_ftir_data(filename):
@@ -127,8 +173,9 @@ def detect_peaks(wavenumbers, transmittance, prominence=0.02, distance=20, heigh
     
     Wavenumber Range Filter:
     -----------------------
-    Only peaks in 800-3600 cm^-1 are considered (typical FTIR range).
-    This excludes the far-infrared region where data quality may be lower.
+    Only peaks in 400-3600 cm^-1 are considered (full mid-infrared range including fingerprint region).
+    The fingerprint region (400-1500 cm^-1) is important for heavy metal detection via metal-ligand vibrations.
+    This range captures both functional groups and heavy metal complexes.
     
     Returns:
     --------
@@ -152,12 +199,14 @@ def detect_peaks(wavenumbers, transmittance, prominence=0.02, distance=20, heigh
     )
     
     # Filter peaks to only include those in relevant wavenumber ranges
-    # Focus on the fingerprint region and functional group regions
+    # Include fingerprint region (400-1500 cm^-1) for heavy metal detection
+    # and functional group regions (1500-3600 cm^-1)
     relevant_peaks = []
     for peak_idx in peaks:
         wavenum = wavenumbers[peak_idx]
-        # Only consider peaks in the range 800-3600 cm^-1 (typical FTIR range)
-        if 800 <= wavenum <= 3600:
+        # Consider peaks in the range 400-3600 cm^-1 (full mid-IR including fingerprint region)
+        # The fingerprint region (400-1500 cm^-1) is critical for heavy metal detection
+        if 400 <= wavenum <= 3600:
             relevant_peaks.append(peak_idx)
     
     peak_wavenumbers = wavenumbers[relevant_peaks]
@@ -166,8 +215,15 @@ def detect_peaks(wavenumbers, transmittance, prominence=0.02, distance=20, heigh
     return peak_wavenumbers, peak_transmittance, np.array(relevant_peaks)
 
 def identify_functional_group(wavenumber):
-    """Identify functional group based on wavenumber"""
+    """
+    Identify functional group based on wavenumber.
+    
+    Important: Checks ranges in order - more specific ranges should come FIRST.
+    Returns the FIRST matching group, so specific metals must be listed before
+    general "Metal-O" categories.
+    """
     # Check each functional group range (in order of specificity)
+    # More specific ranges are checked first (e.g., specific metals before general Metal-O)
     for group_name, (min_wavenum, max_wavenum) in FUNCTIONAL_GROUPS:
         if min_wavenum <= wavenumber <= max_wavenum:
             return group_name

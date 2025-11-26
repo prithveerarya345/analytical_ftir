@@ -4,10 +4,11 @@ A simple web application for analyzing and comparing FTIR (Fourier Transform Inf
 
 ## Features
 
-1. **Interactive Spectra Visualization**: View all three FTIR spectra on a single interactive plot using Plotly
-2. **Peak Detection**: Automatically identifies absorption peaks in each spectrum
+1. **Interactive Spectra Visualization**: View all three FTIR spectra on separate plots and a comparison plot using Plotly
+2. **Peak Detection**: Automatically identifies absorption peaks in each spectrum using absorbance conversion
 3. **Functional Group Identification**: Maps detected peaks to their corresponding functional groups/chemical bonds
-4. **Comparison Table**: Shows a side-by-side comparison of which functional groups are present in each bacterial sample
+4. **Heavy Metal Detection**: Includes fingerprint region (400-1500 cm⁻¹) analysis for heavy metal detection via metal-ligand vibrations
+5. **Comparison Table**: Shows a side-by-side comparison of which functional groups are present in each bacterial sample
 
 ## Installation
 
@@ -84,12 +85,24 @@ The app identifies over 30 functional groups based on wavenumber ranges. Key gro
 - C-O-C Stretching (Carbohydrates): 950-1050 cm⁻¹
 - C-O Stretching (Ethers): 1050-1150 cm⁻¹
 
+**Heavy Metal Detection (Fingerprint Region):**
+- Metal-O Stretching (Heavy Metals): 400-800 cm⁻¹
+- Metal-OH Bending (Heavy Metals): 500-800 cm⁻¹
+- Metal-S Stretching (Heavy Metals): 400-600 cm⁻¹
+- Metal-N Stretching (Heavy Metals): 400-600 cm⁻¹
+- Metal-Carbonate (Heavy Metals): 1400-1500 cm⁻¹
+- Metal-Phosphate (Heavy Metals): 900-1100 cm⁻¹
+- Metal-Sulfate (Heavy Metals): 1100-1200 cm⁻¹
+- Metal-Nitrate (Heavy Metals): 1300-1400 cm⁻¹
+- Specific metal bands: Pb-O, Cd-O, Hg-S, As-O, Cr-O, Cu-O, Zn-O, Ni-O, Fe-O
+
 **References:**
 - NIST Chemistry WebBook (https://webbook.nist.gov/)
 - Thermo Fisher Scientific FTIR Reference Chart
 - Chemistry LibreTexts IR Correlation Tables
 - Standard FTIR reference texts (Silverstein, Bassler, Morrill)
 - Published bacterial FTIR studies
+- Heavy metal detection in fingerprint region (Food Safety and Risk, 2025)
 
 ## Technologies Used
 
